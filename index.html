@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流體力學單位換算工具 (含因次分析)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        .tab-active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .tab-inactive {
+            border-color: transparent;
+            color: #6b7280;
+        }
+        .result-box {
+            background-color: #f3f4f6;
+            border-left: 4px solid #3b82f6;
+        }
+        .dimension-text {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            color: #4b5563; /* gray-600 */
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">流體力學單位換算工具</h1>
+            <p class="mt-2 text-md text-gray-600">一個整合公式計算與單位換算的智慧型教學輔助工具</p>
+        </header>
+
+        <!-- Tabs Navigation -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex flex-wrap -mb-px" id="tabs">
+                <button class="tab-active text-sm md:text-base font-semibold py-3 px-4 border-b-2" data-tab="simple-converter">通用單位換算</button>
+                <button class="tab-inactive text-sm md:text-base font-semibold py-3 px-4 border-b-2" data-tab="reynolds-calculator">雷諾數計算器</button>
+                <button class="tab-inactive text-sm md:text-base font-semibold py-3 px-4 border-b-2" data-tab="manning-solver">曼寧公式求解器</button>
+                <button class="tab-inactive text-sm md:text-base font-semibold py-3 px-4 border-b-2" data-tab="froude-calculator">福祿數計算器</button>
+                <button class="tab-inactive text-sm md:text-base font-semibold py-3 px-4 border-b-2" data-tab="pressure-head">壓力水頭換算</p>
+            </nav>
+        </div>
+
+        <!-- Tabs Content -->
+        <div id="tab-content">
+            <!-- 1. Simple Converter -->
+            <div id="simple-converter-content" class="space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800">通用單位換算</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div class="col-span-1">
+                            <label for="quantity-select" class="block text-sm font-medium text-gray-700 mb-1">物理量 <span id="quantity-dimension" class="dimension-text"></span></label>
+                            <select id="quantity-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></select>
+                        </div>
+                        <div class="col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                            <div>
+                                <input type="number" id="from-value" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="輸入數值">
+                                <select id="from-unit" class="w-full mt-2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></select>
+                            </div>
+                            <div class="text-center text-2xl font-semibold text-gray-500">=</div>
+                            <div>
+                                <input type="text" id="to-value" class="w-full p-2 border bg-gray-100 border-gray-300 rounded-md shadow-sm" readonly>
+                                <select id="to-unit" class="w-full mt-2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Reynolds Number Calculator -->
+            <div id="reynolds-calculator-content" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-xl font-bold mb-1 text-gray-800">雷諾數 (Reynolds Number) 計算器</h2>
+                    <p class="text-sm text-gray-600 mb-4">公式: Re = ρVD/μ</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <!-- Input fields -->
+                        <div>
+                            <label for="re-density" class="block text-sm font-medium text-gray-700">流體密度 (ρ)<span class="dimension-text">(M·L<sup>-3</sup>)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="re-density" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="例如: 998.2">
+                                <select id="re-density-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="re-velocity" class="block text-sm font-medium text-gray-700">平均流速 (V)<span class="dimension-text">(L·T<sup>-1</sup>)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="re-velocity" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="例如: 1.5">
+                                <select id="re-velocity-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="re-diameter" class="block text-sm font-medium text-gray-700">特徵長度 (D)<span class="dimension-text">(L)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="re-diameter" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="例如: 0.1">
+                                <select id="re-diameter-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="re-viscosity" class="block text-sm font-medium text-gray-700">動力黏滯度 (μ)<span class="dimension-text">(M·L<sup>-1</sup>·T<sup>-1</sup>)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="re-viscosity" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="例如: 0.001">
+                                <select id="re-viscosity-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Result -->
+                    <div id="re-result-box" class="mt-6 p-4 rounded-md result-box hidden">
+                        <p class="text-lg font-semibold">計算結果:</p>
+                        <p class="text-2xl font-bold text-blue-600 mt-1">Re = <span id="re-result"></span></p>
+                        <p class="mt-2 text-md font-medium"><span id="re-flow-regime"></span></p>
+                        <div class="mt-3 pt-3 border-t border-gray-300 text-sm">
+                            <p class="font-semibold">因次校驗:</p>
+                            <p class="font-mono text-gray-600 text-xs sm:text-sm">Re = [ρ][V][D] / [μ]</p>
+                            <p class="font-mono text-gray-600 text-xs sm:text-sm">= (M·L<sup>-3</sup>) (L·T<sup>-1</sup>) (L) / (M·L<sup>-1</sup>·T<sup>-1</sup>)</p>
+                            <p class="font-mono text-gray-600 text-xs sm:text-sm">= M<sup>1-1</sup> L<sup>-3+1+1-(-1)</sup> T<sup>-1-(-1)</sup> = M<sup>0</sup>L<sup>0</sup>T<sup>0</sup> (無因次)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Manning Equation Solver -->
+            <div id="manning-solver-content" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-xl font-bold mb-1 text-gray-800">曼寧公式 (Manning's Equation) 求解器</h2>
+                    <p class="text-sm text-gray-600 mb-4">公式: V = (κ/n) * Rₕ²/³ * S¹/²</p>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <!-- Input fields -->
+                        <div>
+                            <label for="man-n" class="block text-sm font-medium text-gray-700">曼寧糙率 (n)<span class="dimension-text">(T·L<sup>-1/3</sup>)</span></label>
+                            <input type="number" id="man-n" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="例如: 0.013">
+                            <p class="text-xs text-gray-500 mt-1">註：此為國際單位制 (SI) 下的因次。</p>
+                        </div>
+                        <div>
+                            <label for="man-rh" class="block text-sm font-medium text-gray-700">水力半徑 (Rₕ)<span class="dimension-text">(L)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="man-rh" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="例如: 0.5">
+                                <select id="man-rh-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="man-slope" class="block text-sm font-medium text-gray-700">渠道坡降 (S)<span class="dimension-text">(無因次)</span></label>
+                            <input type="number" id="man-slope" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="例如: 0.001 (無單位)">
+                        </div>
+                        <div>
+                            <label for="man-output-unit" class="block text-sm font-medium text-gray-700">輸出流速單位<span class="dimension-text">(L·T<sup>-1</sup>)</span></label>
+                            <select id="man-output-unit" class="mt-1 w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></select>
+                        </div>
+                    </div>
+                     <!-- Result -->
+                    <div id="man-result-box" class="mt-6 p-4 rounded-md result-box hidden">
+                        <p class="text-lg font-semibold">計算結果:</p>
+                        <p class="text-2xl font-bold text-blue-600 mt-1">V = <span id="man-result"></span></p>
+                        <p class="text-sm text-gray-500 mt-1">使用 κ = <span id="man-kappa"></span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Froude Number Calculator -->
+            <div id="froude-calculator-content" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-xl font-bold mb-1 text-gray-800">福祿數 (Froude Number) 計算器</h2>
+                    <p class="text-sm text-gray-600 mb-4">公式: Fr = V / (gD)¹/²</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <!-- Input fields -->
+                        <div>
+                            <label for="fr-velocity" class="block text-sm font-medium text-gray-700">平均流速 (V)<span class="dimension-text">(L·T<sup>-1</sup>)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="fr-velocity" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="例如: 1.0">
+                                <select id="fr-velocity-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="fr-depth" class="block text-sm font-medium text-gray-700">水力深度 (D)<span class="dimension-text">(L)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="fr-depth" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="例如: 0.8">
+                                <select id="fr-depth-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">註：對於矩形渠道，D = 水深 y。</p>
+                        </div>
+                    </div>
+                    <!-- Result -->
+                    <div id="fr-result-box" class="mt-6 p-4 rounded-md result-box hidden">
+                        <p class="text-lg font-semibold">計算結果:</p>
+                        <p class="text-2xl font-bold text-blue-600 mt-1">Fr = <span id="fr-result"></span></p>
+                        <p class="mt-2 text-md font-medium"><span id="fr-flow-regime"></span></p>
+                        <div class="mt-3 pt-3 border-t border-gray-300 text-sm">
+                            <p class="font-semibold">因次校驗:</p>
+                            <p class="font-mono text-gray-600 text-xs sm:text-sm">Fr = [V] / ([g][D])¹/²</p>
+                            <p class="font-mono text-gray-600 text-xs sm:text-sm">= (L·T<sup>-1</sup>) / ((L·T<sup>-2</sup>)(L))¹/²</p>
+                            <p class="font-mono text-gray-600 text-xs sm:text-sm">= (L·T<sup>-1</sup>) / (L²·T<sup>-2</sup>)¹/² = (L·T<sup>-1</sup>) / (L·T<sup>-1</sup>) = M<sup>0</sup>L<sup>0</sup>T<sup>0</sup> (無因次)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 5. Pressure Head Converter -->
+            <div id="pressure-head-content" class="hidden space-y-6">
+                 <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <h2 class="text-xl font-bold mb-1 text-gray-800">壓力與水頭換算</h2>
+                    <p class="text-sm text-gray-600 mb-4">公式: P = ρgh</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <div>
+                            <label for="ph-pressure" class="block text-sm font-medium text-gray-700">壓力 (P)<span class="dimension-text">(M·L<sup>-1</sup>·T<sup>-2</sup>)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="ph-pressure" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="輸入壓力">
+                                <select id="ph-pressure-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="ph-head" class="block text-sm font-medium text-gray-700">水頭 (h)<span class="dimension-text">(L)</span></label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="ph-head" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" placeholder="輸入水頭">
+                                <select id="ph-head-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="ph-density" class="block text-sm font-medium text-gray-700">流體密度 (ρ)<span class="dimension-text">(M·L<sup>-3</sup>)</span></label>
+                             <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" id="ph-density" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md focus:ring-blue-500 focus:border-blue-500 border-gray-300" value="998.2">
+                                <select id="ph-density-unit" class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm"></select>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">預設為水在 20°C 時的密度。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- DATABASE ---
+        // Unit database based on the provided document's Table 2
+        const units = {
+            pressure: {
+                name: '壓力 (Pressure)',
+                si_unit: 'Pa',
+                dimension: 'M·L<sup>-1</sup>·T<sup>-2</sup>',
+                data: {
+                    'Pa': { name: '帕斯卡 (Pa)', to_si: 1 },
+                    'kPa': { name: '千帕 (kPa)', to_si: 1000 },
+                    'MPa': { name: '百萬帕 (MPa)', to_si: 1e6 },
+                    'bar': { name: '巴 (bar)', to_si: 100000 },
+                    'psi': { name: '磅/平方英寸 (psi)', to_si: 6894.76 },
+                    'atm': { name: '標準大氣壓 (atm)', to_si: 101325 },
+                    'kgf/cm²': { name: '公斤力/平方公分 (kgf/cm²)', to_si: 98066.5 },
+                    'mmHg': { name: '毫米汞柱 (mmHg)', to_si: 133.322 },
+                    'mmH2O': { name: '毫米水柱 (mmH₂O)', to_si: 9.80665 }
+                }
+            },
+            volume_flow_rate: {
+                name: '體積流率 (Volume Flow Rate)',
+                si_unit: 'm³/s',
+                dimension: 'L<sup>3</sup>·T<sup>-1</sup>',
+                data: {
+                    'm³/s': { name: '立方米/秒 (m³/s)', to_si: 1 },
+                    'L/s': { name: '升/秒 (L/s)', to_si: 0.001 },
+                    'L/min': { name: '升/分鐘 (L/min)', to_si: 1.6667e-5 },
+                    'gpm': { name: '加侖/分鐘 (gpm US)', to_si: 6.309e-5 },
+                    'cfm': { name: '立方英尺/分鐘 (cfm)', to_si: 0.0004719 }
+                }
+            },
+            mass_flow_rate: {
+                name: '質量流率 (Mass Flow Rate)',
+                si_unit: 'kg/s',
+                dimension: 'M·T<sup>-1</sup>',
+                data: {
+                    'kg/s': { name: '公斤/秒 (kg/s)', to_si: 1 },
+                    'lb/s': { name: '磅/秒 (lb/s)', to_si: 0.453592 }
+                }
+            },
+            dynamic_viscosity: {
+                name: '動力黏滯度 (Dynamic Viscosity)',
+                si_unit: 'Pa·s',
+                dimension: 'M·L<sup>-1</sup>·T<sup>-1</sup>',
+                data: {
+                    'Pa·s': { name: '帕斯卡-秒 (Pa·s)', to_si: 1 },
+                    'P': { name: '泊 (Poise)', to_si: 0.1 },
+                    'cP': { name: '厘泊 (cP)', to_si: 0.001 },
+                    'lbf·s/ft²': { name: '磅力-秒/平方英尺 (lbf·s/ft²)', to_si: 47.8803 }
+                }
+            },
+            kinematic_viscosity: {
+                name: '運動黏滯度 (Kinematic Viscosity)',
+                si_unit: 'm²/s',
+                dimension: 'L<sup>2</sup>·T<sup>-1</sup>',
+                data: {
+                    'm²/s': { name: '平方米/秒 (m²/s)', to_si: 1 },
+                    'St': { name: '斯托克斯 (Stokes)', to_si: 0.0001 },
+                    'cSt': { name: '厘斯 (cSt)', to_si: 1e-6 },
+                    'ft²/s': { name: '平方英尺/秒 (ft²/s)', to_si: 0.092903 }
+                }
+            },
+            length: {
+                name: '長度 (Length)',
+                si_unit: 'm',
+                dimension: 'L',
+                data: {
+                    'm': { name: '米 (m)', to_si: 1 },
+                    'cm': { name: '公分 (cm)', to_si: 0.01 },
+                    'mm': { name: '毫米 (mm)', to_si: 0.001 },
+                    'in': { name: '英寸 (in)', to_si: 0.0254 },
+                    'ft': { name: '英尺 (ft)', to_si: 0.3048 }
+                }
+            },
+            velocity: {
+                name: '速度 (Velocity)',
+                si_unit: 'm/s',
+                dimension: 'L·T<sup>-1</sup>',
+                data: {
+                    'm/s': { name: '米/秒 (m/s)', to_si: 1 },
+                    'ft/s': { name: '英尺/秒 (ft/s)', to_si: 0.3048 }
+                }
+            },
+            density: {
+                name: '密度 (Density)',
+                si_unit: 'kg/m³',
+                dimension: 'M·L<sup>-3</sup>',
+                data: {
+                    'kg/m³': { name: '公斤/立方米 (kg/m³)', to_si: 1 },
+                    'g/cm³': { name: '克/立方公分 (g/cm³)', to_si: 1000 },
+                    'lb/ft³': { name: '磅/立方英尺 (lb/ft³)', to_si: 16.0185 }
+                }
+            }
+        };
+
+        const GRAVITY = 9.80665; // m/s²
+
+        // --- UTILITY FUNCTIONS ---
+        function populateSelect(selectElement, options) {
+            selectElement.innerHTML = '';
+            for (const key in options) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = options[key].name;
+                selectElement.appendChild(option);
+            }
+        }
+
+        function convertUnit(value, fromUnit, toUnit, quantity) {
+            if (!value || !fromUnit || !toUnit || !quantity) return NaN;
+            const quantityData = units[quantity].data;
+            const fromFactor = quantityData[fromUnit].to_si;
+            const toFactor = quantityData[toUnit].to_si;
+            const valueInSI = value * fromFactor;
+            return valueInSI / toFactor;
+        }
+
+        // --- TAB SWITCHING LOGIC ---
+        const tabs = document.getElementById('tabs');
+        const tabContent = document.getElementById('tab-content');
+        tabs.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                tabs.querySelectorAll('button').forEach(button => {
+                    button.classList.remove('tab-active');
+                    button.classList.add('tab-inactive');
+                });
+                tabContent.querySelectorAll(':scope > div').forEach(div => {
+                    div.classList.add('hidden');
+                });
+
+                e.target.classList.add('tab-active');
+                e.target.classList.remove('tab-inactive');
+                const tabName = e.target.dataset.tab;
+                document.getElementById(`${tabName}-content`).classList.remove('hidden');
+            }
+        });
+
+        // --- SIMPLE CONVERTER LOGIC ---
+        const quantitySelect = document.getElementById('quantity-select');
+        const quantityDimensionSpan = document.getElementById('quantity-dimension');
+        const fromValueInput = document.getElementById('from-value');
+        const fromUnitSelect = document.getElementById('from-unit');
+        const toValueInput = document.getElementById('to-value');
+        const toUnitSelect = document.getElementById('to-unit');
+
+        function setupSimpleConverter() {
+            for (const key in units) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = units[key].name;
+                quantitySelect.appendChild(option);
+            }
+            updateSimpleConverterUnits();
+        }
+
+        function updateSimpleConverterUnits() {
+            const selectedQuantity = quantitySelect.value;
+            const quantityData = units[selectedQuantity];
+            populateSelect(fromUnitSelect, quantityData.data);
+            populateSelect(toUnitSelect, quantityData.data);
+            quantityDimensionSpan.innerHTML = `(${quantityData.dimension})`;
+            calculateSimpleConversion();
+        }
+
+        function calculateSimpleConversion() {
+            const fromValue = parseFloat(fromValueInput.value);
+            if (isNaN(fromValue)) {
+                toValueInput.value = '';
+                return;
+            }
+            const result = convertUnit(fromValue, fromUnitSelect.value, toUnitSelect.value, quantitySelect.value);
+            toValueInput.value = isNaN(result) ? '' : result.toPrecision(6);
+        }
+
+        quantitySelect.addEventListener('change', updateSimpleConverterUnits);
+        fromValueInput.addEventListener('input', calculateSimpleConversion);
+        fromUnitSelect.addEventListener('change', calculateSimpleConversion);
+        toUnitSelect.addEventListener('change', calculateSimpleConversion);
+
+        // --- REYNOLDS NUMBER CALCULATOR LOGIC ---
+        const reInputs = {
+            density: document.getElementById('re-density'),
+            velocity: document.getElementById('re-velocity'),
+            diameter: document.getElementById('re-diameter'),
+            viscosity: document.getElementById('re-viscosity')
+        };
+        const reUnitSelects = {
+            density: document.getElementById('re-density-unit'),
+            velocity: document.getElementById('re-velocity-unit'),
+            diameter: document.getElementById('re-diameter-unit'),
+            viscosity: document.getElementById('re-viscosity-unit')
+        };
+        const reResultBox = document.getElementById('re-result-box');
+        const reResultSpan = document.getElementById('re-result');
+        const reFlowRegimeSpan = document.getElementById('re-flow-regime');
+
+        function setupReynoldsCalculator() {
+            populateSelect(reUnitSelects.density, units.density.data);
+            populateSelect(reUnitSelects.velocity, units.velocity.data);
+            populateSelect(reUnitSelects.diameter, units.length.data);
+            populateSelect(reUnitSelects.viscosity, units.dynamic_viscosity.data);
+            
+            reUnitSelects.density.value = 'kg/m³';
+            reUnitSelects.velocity.value = 'm/s';
+            reUnitSelects.diameter.value = 'm';
+            reUnitSelects.viscosity.value = 'Pa·s';
+        }
+
+        function calculateReynolds() {
+            const rho_val = parseFloat(reInputs.density.value);
+            const v_val = parseFloat(reInputs.velocity.value);
+            const d_val = parseFloat(reInputs.diameter.value);
+            const mu_val = parseFloat(reInputs.viscosity.value);
+
+            if ([rho_val, v_val, d_val, mu_val].some(isNaN)) {
+                reResultBox.classList.add('hidden');
+                return;
+            }
+
+            const rho_si = convertUnit(rho_val, reUnitSelects.density.value, units.density.si_unit, 'density');
+            const v_si = convertUnit(v_val, reUnitSelects.velocity.value, units.velocity.si_unit, 'velocity');
+            const d_si = convertUnit(d_val, reUnitSelects.diameter.value, units.length.si_unit, 'length');
+            const mu_si = convertUnit(mu_val, reUnitSelects.viscosity.value, units.dynamic_viscosity.si_unit, 'dynamic_viscosity');
+
+            const re = (rho_si * v_si * d_si) / mu_si;
+
+            reResultSpan.textContent = isNaN(re) ? '計算錯誤' : re.toExponential(4);
+            
+            let regime = '流態判斷 (管流): ';
+            if (isNaN(re)) {
+                regime = '無法判斷流態';
+            } else if (re < 2300) {
+                regime += '層流 (Laminar Flow)';
+            } else if (re > 4000) {
+                regime += '紊流 (Turbulent Flow)';
+            } else {
+                regime += '過渡區 (Transitional Flow)';
+            }
+            reFlowRegimeSpan.textContent = regime;
+            reResultBox.classList.remove('hidden');
+        }
+        
+        Object.values(reInputs).forEach(input => input.addEventListener('input', calculateReynolds));
+        Object.values(reUnitSelects).forEach(select => select.addEventListener('change', calculateReynolds));
+        
+        // --- MANNING EQUATION SOLVER LOGIC ---
+        const manInputs = {
+            n: document.getElementById('man-n'),
+            rh: document.getElementById('man-rh'),
+            slope: document.getElementById('man-slope')
+        };
+        const manRhUnitSelect = document.getElementById('man-rh-unit');
+        const manOutputUnitSelect = document.getElementById('man-output-unit');
+        const manResultBox = document.getElementById('man-result-box');
+        const manResultSpan = document.getElementById('man-result');
+        const manKappaSpan = document.getElementById('man-kappa');
+
+        function setupManningSolver() {
+            populateSelect(manRhUnitSelect, units.length.data);
+            populateSelect(manOutputUnitSelect, units.velocity.data);
+            manRhUnitSelect.value = 'm';
+            manOutputUnitSelect.value = 'm/s';
+        }
+
+        function calculateManning() {
+            const n_val = parseFloat(manInputs.n.value);
+            const rh_val = parseFloat(manInputs.rh.value);
+            const s_val = parseFloat(manInputs.slope.value);
+
+            if ([n_val, rh_val, s_val].some(isNaN)) {
+                manResultBox.classList.add('hidden');
+                return;
+            }
+            
+            const outputUnit = manOutputUnitSelect.value;
+            const isImperial = (outputUnit === 'ft/s');
+            const kappa = isImperial ? 1.486 : 1.0;
+
+            const rh_si = convertUnit(rh_val, manRhUnitSelect.value, 'm', 'length');
+            
+            let v_si = (kappa / n_val) * Math.pow(rh_si, 2/3) * Math.pow(s_val, 1/2);
+            
+            if (isImperial) {
+                const rh_ft = convertUnit(rh_val, manRhUnitSelect.value, 'ft', 'length');
+                v_si = (kappa / n_val) * Math.pow(rh_ft, 2/3) * Math.pow(s_val, 1/2);
+            }
+
+            const result = convertUnit(v_si, isImperial ? 'ft/s' : 'm/s', outputUnit, 'velocity');
+
+            manResultSpan.textContent = `${result.toPrecision(4)} ${outputUnit}`;
+            manKappaSpan.textContent = kappa;
+            manResultBox.classList.remove('hidden');
+        }
+
+        Object.values(manInputs).forEach(input => input.addEventListener('input', calculateManning));
+        manRhUnitSelect.addEventListener('change', calculateManning);
+        manOutputUnitSelect.addEventListener('change', calculateManning);
+
+        // --- FROUDE NUMBER CALCULATOR LOGIC ---
+        const frInputs = {
+            velocity: document.getElementById('fr-velocity'),
+            depth: document.getElementById('fr-depth')
+        };
+        const frUnitSelects = {
+            velocity: document.getElementById('fr-velocity-unit'),
+            depth: document.getElementById('fr-depth-unit')
+        };
+        const frResultBox = document.getElementById('fr-result-box');
+        const frResultSpan = document.getElementById('fr-result');
+        const frFlowRegimeSpan = document.getElementById('fr-flow-regime');
+
+        function setupFroudeCalculator() {
+            populateSelect(frUnitSelects.velocity, units.velocity.data);
+            populateSelect(frUnitSelects.depth, units.length.data);
+            frUnitSelects.velocity.value = 'm/s';
+            frUnitSelects.depth.value = 'm';
+        }
+
+        function calculateFroude() {
+            const v_val = parseFloat(frInputs.velocity.value);
+            const d_val = parseFloat(frInputs.depth.value);
+
+            if ([v_val, d_val].some(isNaN)) {
+                frResultBox.classList.add('hidden');
+                return;
+            }
+
+            const v_si = convertUnit(v_val, frUnitSelects.velocity.value, 'm/s', 'velocity');
+            const d_si = convertUnit(d_val, frUnitSelects.depth.value, 'm', 'length');
+
+            if (d_si <= 0) {
+                frResultBox.classList.add('hidden');
+                return;
+            }
+
+            const fr = v_si / Math.sqrt(GRAVITY * d_si);
+
+            frResultSpan.textContent = isNaN(fr) ? '計算錯誤' : fr.toPrecision(4);
+            
+            let regime = '流態判斷 (明渠流): ';
+            if (isNaN(fr)) {
+                regime = '無法判斷流態';
+            } else if (fr < 1.0) {
+                regime += '亞臨界流 / 緩流 (Subcritical Flow)';
+            } else if (fr > 1.0) {
+                regime += '超臨界流 / 急流 (Supercritical Flow)';
+            } else {
+                regime += '臨界流 (Critical Flow)';
+            }
+            frFlowRegimeSpan.textContent = regime;
+            frResultBox.classList.remove('hidden');
+        }
+
+        Object.values(frInputs).forEach(input => input.addEventListener('input', calculateFroude));
+        Object.values(frUnitSelects).forEach(select => select.addEventListener('change', calculateFroude));
+
+        // --- PRESSURE HEAD CONVERTER LOGIC ---
+        const phInputs = {
+            pressure: document.getElementById('ph-pressure'),
+            head: document.getElementById('ph-head'),
+            density: document.getElementById('ph-density')
+        };
+        const phUnitSelects = {
+            pressure: document.getElementById('ph-pressure-unit'),
+            head: document.getElementById('ph-head-unit'),
+            density: document.getElementById('ph-density-unit')
+        };
+        
+        let lastChanged = 'pressure';
+
+        function setupPressureHeadConverter() {
+            populateSelect(phUnitSelects.pressure, units.pressure.data);
+            populateSelect(phUnitSelects.head, units.length.data);
+            populateSelect(phUnitSelects.density, units.density.data);
+            
+            phUnitSelects.pressure.value = 'kPa';
+            phUnitSelects.head.value = 'm';
+            phUnitSelects.density.value = 'kg/m³';
+        }
+
+        function calculatePressureHead() {
+            const pressure_val = parseFloat(phInputs.pressure.value);
+            const head_val = parseFloat(phInputs.head.value);
+            const density_val = parseFloat(phInputs.density.value);
+
+            if (isNaN(density_val)) return;
+            const density_si = convertUnit(density_val, phUnitSelects.density.value, 'kg/m³', 'density');
+
+            if (lastChanged === 'pressure' && !isNaN(pressure_val)) {
+                const pressure_si = convertUnit(pressure_val, phUnitSelects.pressure.value, 'Pa', 'pressure');
+                const head_si = pressure_si / (density_si * GRAVITY);
+                const head_result = convertUnit(head_si, 'm', phUnitSelects.head.value, 'length');
+                phInputs.head.value = head_result.toPrecision(4);
+            } else if (lastChanged === 'head' && !isNaN(head_val)) {
+                const head_si = convertUnit(head_val, phUnitSelects.head.value, 'm', 'length');
+                const pressure_si = density_si * GRAVITY * head_si;
+                const pressure_result = convertUnit(pressure_si, 'Pa', phUnitSelects.pressure.value, 'pressure');
+                phInputs.pressure.value = pressure_result.toPrecision(4);
+            }
+        }
+        
+        phInputs.pressure.addEventListener('input', () => { lastChanged = 'pressure'; calculatePressureHead(); });
+        phInputs.head.addEventListener('input', () => { lastChanged = 'head'; calculatePressureHead(); });
+        phInputs.density.addEventListener('input', calculatePressureHead);
+        Object.values(phUnitSelects).forEach(select => select.addEventListener('change', calculatePressureHead));
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            setupSimpleConverter();
+            setupReynoldsCalculator();
+            setupManningSolver();
+            setupFroudeCalculator();
+            setupPressureHeadConverter();
+        };
+    </script>
+</body>
+</html>
